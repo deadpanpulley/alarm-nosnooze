@@ -1,43 +1,45 @@
 {
-  "expo": {
-    "name": "alarmy",
-    "slug": "alarmy",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.alarmy"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "softwareKeyboardLayoutMode": "pan",
-      "package": "com.anonymous.alarmy",
-      "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "WAKE_LOCK",
-        "SCHEDULE_EXACT_ALARM"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-font"
-    ],
-    "newArchEnabled": true
-  }
+	"expo": {
+		"name": "alarmy",
+		"slug": "alarmy",
+		"version": "1.0.0",
+		"orientation": "portrait",
+		"icon": "./assets/icon.png",
+		"userInterfaceStyle": "light",
+		"splash": {
+			"image": "./assets/splash.png",
+			"resizeMode": "contain",
+			"backgroundColor": "#ffffff"
+		},
+		"assetBundlePatterns": [
+			"**/*"
+		],
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.anonymous.alarmy"
+		},
+		"android": {
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#ffffff"
+			},
+			"softwareKeyboardLayoutMode": "pan",
+			"package": "com.anonymous.alarmy",
+			"permissions": [
+				"RECEIVE_BOOT_COMPLETED",
+				"VIBRATE",
+				"WAKE_LOCK",
+				"SCHEDULE_EXACT_ALARM"
+			]
+		},
+		"web": {
+			"favicon": "./assets/favicon.png"
+		},
+		"plugins": [
+			"expo-font"
+		],
+		"newArchEnabled": true,
+		"owner": "the2ndfloorguy",
+		"githubUrl": "https://github.com/Pankajtanwarbanna/alarmy"
+	}
 }
