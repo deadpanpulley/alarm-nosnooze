@@ -14,6 +14,7 @@ import { Audio } from 'expo-av';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
+import * as Notifications from 'expo-notifications';
 
 type QuizChallengeRouteProp = RouteProp<RootStackParamList, 'QuizChallenge'>;
 type QuizChallengeNavigationProp = StackNavigationProp<RootStackParamList, 'QuizChallenge'>;
@@ -93,19 +94,19 @@ const QuizChallengeScreen = () => {
   const route = useRoute<QuizChallengeRouteProp>();
   const navigation = useNavigation<QuizChallengeNavigationProp>();
   const { alarm } = route.params;
-  
+
   // Sound object for alarm
   const [sound, setSound] = useState<Audio.Sound | null>(null);
-  
+
   // Current time displayed
   const [currentTime, setCurrentTime] = useState('');
-  
+
   // Quiz state
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [answered, setAnswered] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState(false);
-  
+
   // Format current time
   const getCurrentTime = () => {
     const now = new Date();
@@ -124,22 +125,37 @@ const QuizChallengeScreen = () => {
   };
 
   // Handle option selection
+  // Update the handleOptionSelect function in QuizChallengeScreen.tsx
+
+  // Handle option selection 
   const handleOptionSelect = (optionIndex: number) => {
     if (answered) return;
-    
+
     setSelectedOption(optionIndex);
     setAnswered(true);
-    
+
     const isAnswerCorrect = optionIndex === currentQuestion?.correctAnswer;
     setIsCorrect(isAnswerCorrect);
-    
+
     if (isAnswerCorrect) {
-      // Correct answer
+      // Correct answer - completely stop and unload sound
       if (sound) {
-        sound.stopAsync();
+        sound.stopAsync().then(() => {
+          sound.unloadAsync();
+        }).catch(error => {
+          console.error('Error stopping sound:', error);
+        });
       }
+
+      // Cancel vibration
       Vibration.cancel();
-      
+
+      // Important: Cancel the alarm notification that triggered this screen
+      if (alarm && alarm.notificationId) {
+        Notifications.dismissNotificationAsync(alarm.notificationId)
+          .catch(error => console.error('Error dismissing notification:', error));
+      }
+
       // Wait a moment to show the result before dismissing
       setTimeout(() => {
         navigation.navigate('Home');
@@ -147,7 +163,7 @@ const QuizChallengeScreen = () => {
     } else {
       // Wrong answer - vibrate to indicate error
       Vibration.vibrate(500);
-      
+
       // Wait a moment and then reset for a new question
       setTimeout(() => {
         setAnswered(false);
@@ -182,10 +198,10 @@ const QuizChallengeScreen = () => {
       interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       playThroughEarpieceAndroid: false,
     });
-    
+
     // Play sound
     playAlarmSound();
-    
+
     // Start vibration pattern
     if (Platform.OS === 'android') {
       // Android can use complex patterns (wait, vibrate, wait, vibrate, etc.)
@@ -195,24 +211,24 @@ const QuizChallengeScreen = () => {
       const vibrateInterval = setInterval(() => {
         Vibration.vibrate();
       }, 1500);
-      
+
       return () => clearInterval(vibrateInterval);
     }
-    
+
     // Set initial question
     setCurrentQuestion(getRandomQuestion());
-    
+
     // Update current time
     const timeInterval = setInterval(() => {
       setCurrentTime(getCurrentTime());
     }, 1000);
-    
+
     // Prevent back button from closing the screen
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
-    
+
     // Update initial time
     setCurrentTime(getCurrentTime());
-    
+
     // Cleanup function
     return () => {
       if (sound) {
@@ -231,14 +247,14 @@ const QuizChallengeScreen = () => {
         <Text style={styles.timeText}>{currentTime}</Text>
         <Text style={styles.alarmLabel}>{alarm?.label || 'Alarm'}</Text>
       </View>
-      
+
       {/* Quiz Container */}
       <View style={styles.quizContainer}>
         {/* Quiz Question */}
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>{currentQuestion?.question}</Text>
         </View>
-        
+
         {/* Quiz Options */}
         <View style={styles.optionsContainer}>
           {currentQuestion?.options.map((option, index) => (
@@ -246,9 +262,9 @@ const QuizChallengeScreen = () => {
               key={index}
               style={[
                 styles.optionButton,
-                selectedOption === index && 
-                  (index === currentQuestion.correctAnswer ? 
-                    styles.correctOption : styles.wrongOption)
+                selectedOption === index &&
+                (index === currentQuestion.correctAnswer ?
+                  styles.correctOption : styles.wrongOption)
               ]}
               onPress={() => handleOptionSelect(index)}
               disabled={answered}
@@ -257,7 +273,7 @@ const QuizChallengeScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
-        
+
         {/* Feedback Message */}
         {answered && (
           <View style={styles.feedbackContainer}>

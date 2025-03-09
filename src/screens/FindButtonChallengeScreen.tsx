@@ -15,6 +15,7 @@ import { Audio } from 'expo-av';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
+import * as Notifications from 'expo-notifications';
 
 type FindButtonChallengeRouteProp = RouteProp<RootStackParamList, 'FindButtonChallenge'>;
 type FindButtonChallengeNavigationProp = StackNavigationProp<RootStackParamList, 'FindButtonChallenge'>;
@@ -99,11 +100,26 @@ const FindButtonChallengeScreen = () => {
 
   // Handle successful dismiss
   const handleDismiss = () => {
+    // Make sure to stop sound completely
     if (sound) {
-      sound.stopAsync();
+      sound.stopAsync().then(() => {
+        sound.unloadAsync();
+      }).catch(error => {
+        console.error('Error stopping sound:', error);
+      });
     }
+    
+    // Cancel any ongoing vibrations
     Vibration.cancel();
+    
+    // Set state to show success message
     setButtonFound(true);
+    
+    // Important: Cancel the alarm notification that triggered this screen
+    if (alarm && alarm.notificationId) {
+      Notifications.dismissNotificationAsync(alarm.notificationId)
+        .catch(error => console.error('Error dismissing notification:', error));
+    }
     
     // Wait a moment to show success message before navigating back
     setTimeout(() => {

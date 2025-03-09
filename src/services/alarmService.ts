@@ -108,6 +108,8 @@ export const requestNotificationPermissions = async () => {
 // Add notification listener to handle alarm triggers
 let notificationListener: any = null;
 
+// Replace the setupNotificationListener function in alarmService.ts
+
 export const setupNotificationListener = (navigation: any) => {
   // Remove any existing listeners
   if (notificationListener) {
@@ -119,9 +121,17 @@ export const setupNotificationListener = (navigation: any) => {
     const data = notification.request.content.data;
     if (data && data.isAlarm) {
       console.log('Alarm notification received in foreground!');
-      // Force navigation to alarm screen for foreground notifications too
+      // Navigate directly to the challenge screen based on alarm mode
       const { alarm } = data as { alarm: Alarm };
-      navigation.navigate('AlarmRinging', { alarm });
+      
+      if (alarm.mode === AlarmMode.TINY_BUTTON) {
+        navigation.navigate('FindButtonChallenge', { alarm });
+      } else if (alarm.mode === AlarmMode.QUIZ) {
+        navigation.navigate('QuizChallenge', { alarm });
+      } else {
+        // Fallback to AlarmRinging screen if mode is unknown
+        navigation.navigate('AlarmRinging', { alarm });
+      }
     }
   });
 
@@ -131,13 +141,23 @@ export const setupNotificationListener = (navigation: any) => {
     const data = response.notification.request.content.data;
     if (data && data.isAlarm) {
       const { alarm } = data as { alarm: Alarm };
-      // Always navigate to the AlarmRinging screen first
-      navigation.navigate('AlarmRinging', { alarm });
+      
+      // Navigate directly to the challenge screen based on alarm mode
+      if (alarm.mode === AlarmMode.TINY_BUTTON) {
+        navigation.navigate('FindButtonChallenge', { alarm });
+      } else if (alarm.mode === AlarmMode.QUIZ) {
+        navigation.navigate('QuizChallenge', { alarm });
+      } else {
+        // Fallback to AlarmRinging screen if mode is unknown
+        navigation.navigate('AlarmRinging', { alarm });
+      }
     }
   });
 
   return notificationListener;
 };
+
+
 
 // Check for alarms that should be triggered - improved version
 const checkForAlarms = async (): Promise<boolean> => {
@@ -363,50 +383,60 @@ export const manualCheckForAlarms = async () => {
 };
 
 // Add this function to alarmService.ts
+// Update the triggerImmediateAlarm function in alarmService.ts
 
 /**
- * Triggers an immediate full-screen alarm notification for testing
- * @param alarm The alarm object to trigger
+ * Triggers an immediate challenge screen for the alarm
  */
 export const triggerImmediateAlarm = async (alarm: Alarm) => {
-  console.log('Triggering immediate full-screen alarm for testing');
+  console.log('Triggering immediate challenge for alarm:', alarm.label);
   
-  // Prepare notification content for full-screen alarm
-  const notificationContent = {
-    title: alarm.label || 'Alarm',
-    body: 'Wake up! Your alarm is ringing!',
-    data: { 
-      alarm,
-      isAlarm: true,
-      fullScreen: true,
-      isTest: true, // Flag to indicate this is a test
-    },
-    sound: true,
-    priority: 'max',
-    vibrate: [0, 250, 250, 250, 250, 250],
-    sticky: true,
-  };
-
-  // Add Android specific properties
-  if (Platform.OS === 'android') {
-    // @ts-ignore - Add android-specific properties
-    notificationContent.channelId = ALARM_NOTIFICATION_CHANNEL;
-    // @ts-ignore
-    notificationContent.android = {
-      priority: 'max',
-      // This is critical - makes it show as a full-screen activity
-      presentAsFullScreenIntent: true,
-      // Critical - makes it show even when app is in background
-      showWhen: true,
-      // Make it not dismissible by swipe
-      ongoing: true,
-      // Custom sound and vibration
-      vibrationPattern: [0, 250, 250, 250, 250, 250],
-      color: '#FF231F7C',
-    };
-  }
-
   try {
+    // For tests, directly navigate to the challenge screen instead of showing a notification
+    if (global.navigation) {
+      // Go directly to the challenge screen based on the alarm mode
+      if (alarm.mode === AlarmMode.TINY_BUTTON) {
+        global.navigation.navigate('FindButtonChallenge', { alarm });
+      } else if (alarm.mode === AlarmMode.QUIZ) {
+        global.navigation.navigate('QuizChallenge', { alarm });
+      } else {
+        global.navigation.navigate('AlarmRinging', { alarm });
+      }
+      return 'direct-navigation';
+    }
+    
+    // Fallback to notification if global navigation isn't available
+    // Prepare notification content for full-screen alarm
+    const notificationContent = {
+      title: alarm.label || 'Alarm',
+      body: 'Wake up! Your alarm is ringing!',
+      data: { 
+        alarm,
+        isAlarm: true,
+        fullScreen: true,
+        isTest: true,
+      },
+      sound: true,
+      priority: 'max',
+      vibrate: [0, 250, 250, 250, 250, 250],
+      sticky: true,
+    };
+
+    // Add Android specific properties
+    if (Platform.OS === 'android') {
+      // @ts-ignore - Add android-specific properties
+      notificationContent.channelId = ALARM_NOTIFICATION_CHANNEL;
+      // @ts-ignore
+      notificationContent.android = {
+        priority: 'max',
+        presentAsFullScreenIntent: true,
+        showWhen: true,
+        ongoing: true,
+        vibrationPattern: [0, 250, 250, 250, 250, 250],
+        color: '#FF231F7C',
+      };
+    }
+
     // First ensure the notification channel exists
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(ALARM_NOTIFICATION_CHANNEL, {
@@ -426,6 +456,9 @@ export const triggerImmediateAlarm = async (alarm: Alarm) => {
       content: notificationContent,
       trigger: null, // Immediate notification
     });
+    
+    // Store the notification ID with the alarm
+    alarm.notificationId = notificationId;
     
     console.log(`Test alarm notification triggered with ID: ${notificationId}`);
     return notificationId;

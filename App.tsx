@@ -37,7 +37,12 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+declare global {
+  var navigation: any;
+}
+
 export default function App() {
+  
   // Reference to the navigation object for notification handling
   const navigationRef = useRef<any>(null);
 
@@ -172,6 +177,10 @@ export default function App() {
     <SafeAreaView style={{ flex: 1 }}>
       <NavigationContainer
         ref={navigationRef}
+        onReady={() => {
+          // Store navigation reference globally when ready
+          global.navigation = navigationRef.current;
+        }}
       >
         <StatusBar style="auto" />
         <Stack.Navigator
