@@ -63,7 +63,7 @@
 			"icon": "./assets/icon.png",
 			"color": "#ffffff",
 			"sounds": [
-			  "./assets/alarm-sound.mp3"
+			  "./assets/alarm.mp3"
 			],
 			"mode": "production"
 		  }
