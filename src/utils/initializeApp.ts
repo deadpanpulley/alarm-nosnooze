@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   requestNotificationPermissions,
   setupNotificationListener,
@@ -35,6 +36,9 @@ export const initializeApp = async (navigation: any) => {
     
     if (hasPermissions) {
       console.log('Notification permissions granted');
+      
+      // Store last run timestamp for detecting reboots
+      await AsyncStorage.setItem('lastRunTimestamp', Date.now().toString());
       
       // Set up notification listener for handling alarm triggers
       const listener = setupNotificationListener(navigation);

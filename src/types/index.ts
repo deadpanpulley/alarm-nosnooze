@@ -14,9 +14,12 @@ export interface Alarm {
   days: number[];
   sound: string;
   
-  // Added properties for better alarm handling
+  // Optional properties for notifications and scheduling
   notificationId?: string;
-  scheduledHours?: number;
-  scheduledMinutes?: number;
+  
+  // Added properties for exact timing
+  exactHours?: number;
+  exactMinutes?: number;
+  scheduledTime?: number;
   lastTriggered?: number;
 }

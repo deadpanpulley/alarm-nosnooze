@@ -28,13 +28,13 @@ Notifications.setNotificationHandler({
 // Setup background task with more frequent checks
 TaskManager.defineTask(BACKGROUND_ALARM_TASK, async () => {
   try {
+    console.log('Background task running - checking for alarms');
     const result = await checkForAlarms();
-    if (result) {
-      return BackgroundFetch.BackgroundFetchResult.NewData;
-    }
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    return result 
+      ? BackgroundFetch.BackgroundFetchResult.NewData
+      : BackgroundFetch.BackgroundFetchResult.NoData;
   } catch (error) {
-    console.error('Error in background task:', error);
+    console.error('Error in background alarm task:', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -42,20 +42,24 @@ TaskManager.defineTask(BACKGROUND_ALARM_TASK, async () => {
 // Register background task with more frequent checks
 export const registerBackgroundTask = async () => {
   try {
-    // First check if task is already registered
+    // Unregister any existing task first to avoid duplicates
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_ALARM_TASK);
-    if (!isRegistered) {
-      await BackgroundFetch.registerTaskAsync(BACKGROUND_ALARM_TASK, {
-        minimumInterval: 15, // 15 seconds for testing, can increase later
-        stopOnTerminate: false,
-        startOnBoot: true,
-      });
-      console.log('Background task registered');
-    } else {
-      console.log('Background task already registered');
+    if (isRegistered) {
+      await TaskManager.unregisterTaskAsync(BACKGROUND_ALARM_TASK);
     }
+    
+    // Register a new task with more frequent checks
+    await BackgroundFetch.registerTaskAsync(BACKGROUND_ALARM_TASK, {
+      minimumInterval: 60, // One minute in seconds (minimum allowed)
+      stopOnTerminate: false, // Continue running when app is terminated
+      startOnBoot: true, // Start the task when device is restarted
+    });
+    
+    console.log('Background alarm task registered successfully');
+    return true;
   } catch (err) {
     console.error('Background task registration failed:', err);
+    return false;
   }
 };
 
@@ -108,8 +112,6 @@ export const requestNotificationPermissions = async () => {
 // Add notification listener to handle alarm triggers
 let notificationListener: any = null;
 
-// Replace the setupNotificationListener function in alarmService.ts
-
 export const setupNotificationListener = (navigation: any) => {
   // Remove any existing listeners
   if (notificationListener) {
@@ -157,8 +159,6 @@ export const setupNotificationListener = (navigation: any) => {
   return notificationListener;
 };
 
-
-
 // Check for alarms that should be triggered - improved version
 const checkForAlarms = async (): Promise<boolean> => {
   try {
@@ -186,14 +186,14 @@ const checkForAlarms = async (): Promise<boolean> => {
         hours = 0;
       }
       
-      // Check if this alarm should trigger now
+      // Check if this alarm should trigger now - EXACT MATCH
       const currentHours = now.getHours();
       const currentMinutes = now.getMinutes();
       
       console.log(`Checking alarm ${alarm.label} set for ${hours}:${minutes} against current time ${currentHours}:${currentMinutes}`);
       
-      // If the time matches (within a 1-minute window)
-      if (hours === currentHours && Math.abs(minutes - currentMinutes) <= 1) {
+      // If the time matches exactly (no ±1 minute window)
+      if (hours === currentHours && minutes === currentMinutes) {
         // Check if it's scheduled for today
         const today = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         
@@ -288,38 +288,110 @@ const triggerAlarmNotification = async (alarm: Alarm) => {
   return notificationId;
 };
 
-// Schedule all pending alarms every 15 minutes
-export const scheduleAlarmNotification = async (alarm: Alarm) => {
-  // Parse the time string
-  const [time, period] = alarm.time.split(' ');
-  const [hoursStr, minutesStr] = time.split(':');
+// Triggers an immediate alarm (for testing)
+export const triggerImmediateAlarm = async (alarm: Alarm) => {
+  console.log('Triggering immediate alarm for testing:', alarm.label);
   
-  let hours = parseInt(hoursStr);
-  const minutes = parseInt(minutesStr);
-  
-  // Convert to 24-hour format
-  if (period === 'PM' && hours < 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
+  try {
+    // For tests, directly navigate to the challenge screen instead of showing a notification
+    if (global.navigation) {
+      // Go directly to the challenge screen based on the alarm mode
+      if (alarm.mode === AlarmMode.TINY_BUTTON) {
+        global.navigation.navigate('FindButtonChallenge', { alarm });
+      } else if (alarm.mode === AlarmMode.QUIZ) {
+        global.navigation.navigate('QuizChallenge', { alarm });
+      } else {
+        global.navigation.navigate('AlarmRinging', { alarm });
+      }
+      return 'direct-navigation';
+    }
+    
+    // Fallback to notification if global navigation isn't available
+    const notificationId = await triggerAlarmNotification(alarm);
+    return notificationId;
+  } catch (error) {
+    console.error('Error triggering test alarm:', error);
+    return null;
   }
-  
-  // Instead of scheduling a specific notification time, we'll
-  // simply store the alarm information and rely on the background
-  // task to check and trigger it at the appropriate time
-  
-  // Update the alarm in storage
-  const updatedAlarm = {
-    ...alarm,
-    scheduledHours: hours,
-    scheduledMinutes: minutes,
-  };
-  
-  // Update the alarm in storage
-  await updateAlarmInStorage(updatedAlarm);
-  
-  console.log(`Alarm "${alarm.label}" scheduled for ${hours}:${minutes} ${period}`);
-  return updatedAlarm;
+};
+
+// Schedule all pending alarms with exact timing
+export const scheduleAlarmNotification = async (alarm: Alarm) => {
+  try {
+    // Parse the time string
+    const [time, period] = alarm.time.split(' ');
+    const [hoursStr, minutesStr] = time.split(':');
+    
+    let hours = parseInt(hoursStr);
+    const minutes = parseInt(minutesStr);
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hours < 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    // Create a Date object for the next occurrence of this alarm
+    const now = new Date();
+    const alarmDate = new Date();
+    alarmDate.setHours(hours);
+    alarmDate.setMinutes(minutes);
+    alarmDate.setSeconds(0);
+    alarmDate.setMilliseconds(0);
+    
+    // If the alarm time is in the past, schedule it for tomorrow
+    if (alarmDate <= now) {
+      alarmDate.setDate(alarmDate.getDate() + 1);
+    }
+    
+    // For recurring alarms, find the next occurrence
+    if (alarm.days && alarm.days.length > 0) {
+      const currentDay = now.getDay(); // 0-6, where 0 is Sunday
+      
+      // If today is not in the selected days or the time has passed
+      if (!alarm.days.includes(currentDay) || alarmDate <= now) {
+        // Find the next day that matches the pattern
+        let nextDayOffset = -1;
+        for (let i = 1; i <= 7; i++) {
+          const nextDay = (currentDay + i) % 7;
+          if (alarm.days.includes(nextDay)) {
+            nextDayOffset = i;
+            break;
+          }
+        }
+        
+        if (nextDayOffset > 0) {
+          // Set to the next matching day
+          alarmDate.setDate(now.getDate() + nextDayOffset);
+        }
+      }
+    }
+    
+    console.log(`Scheduling alarm for ${alarmDate.toLocaleString()}`);
+    
+    // Cancel any existing notification for this alarm
+    if (alarm.notificationId) {
+      await Notifications.cancelScheduledNotificationAsync(alarm.notificationId);
+    }
+    
+    // Store exact timing information for the background task
+    const updatedAlarm = {
+      ...alarm,
+      exactHours: hours,
+      exactMinutes: minutes,
+      scheduledTime: alarmDate.getTime(),
+    };
+    
+    // Update the alarm in storage
+    await updateAlarmInStorage(updatedAlarm);
+    
+    console.log(`Alarm "${alarm.label}" scheduled for ${hours}:${minutes} ${period} on date ${alarmDate.toLocaleDateString()}`);
+    return updatedAlarm;
+  } catch (error) {
+    console.error('Error scheduling alarm:', error);
+    return alarm;
+  }
 };
 
 // Cancel an alarm notification
@@ -380,90 +452,4 @@ export const scheduleAllActiveAlarms = async () => {
 export const manualCheckForAlarms = async () => {
   console.log('Manual check for alarms...');
   return await checkForAlarms();
-};
-
-// Add this function to alarmService.ts
-// Update the triggerImmediateAlarm function in alarmService.ts
-
-/**
- * Triggers an immediate challenge screen for the alarm
- */
-export const triggerImmediateAlarm = async (alarm: Alarm) => {
-  console.log('Triggering immediate challenge for alarm:', alarm.label);
-  
-  try {
-    // For tests, directly navigate to the challenge screen instead of showing a notification
-    if (global.navigation) {
-      // Go directly to the challenge screen based on the alarm mode
-      if (alarm.mode === AlarmMode.TINY_BUTTON) {
-        global.navigation.navigate('FindButtonChallenge', { alarm });
-      } else if (alarm.mode === AlarmMode.QUIZ) {
-        global.navigation.navigate('QuizChallenge', { alarm });
-      } else {
-        global.navigation.navigate('AlarmRinging', { alarm });
-      }
-      return 'direct-navigation';
-    }
-    
-    // Fallback to notification if global navigation isn't available
-    // Prepare notification content for full-screen alarm
-    const notificationContent = {
-      title: alarm.label || 'Alarm',
-      body: 'Wake up! Your alarm is ringing!',
-      data: { 
-        alarm,
-        isAlarm: true,
-        fullScreen: true,
-        isTest: true,
-      },
-      sound: true,
-      priority: 'max',
-      vibrate: [0, 250, 250, 250, 250, 250],
-      sticky: true,
-    };
-
-    // Add Android specific properties
-    if (Platform.OS === 'android') {
-      // @ts-ignore - Add android-specific properties
-      notificationContent.channelId = ALARM_NOTIFICATION_CHANNEL;
-      // @ts-ignore
-      notificationContent.android = {
-        priority: 'max',
-        presentAsFullScreenIntent: true,
-        showWhen: true,
-        ongoing: true,
-        vibrationPattern: [0, 250, 250, 250, 250, 250],
-        color: '#FF231F7C',
-      };
-    }
-
-    // First ensure the notification channel exists
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ALARM_NOTIFICATION_CHANNEL, {
-        name: 'Alarm Notifications',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250, 250, 250],
-        lightColor: '#FF231F7C',
-        sound: 'default',
-        enableVibrate: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-        bypassDnd: true,
-      });
-    }
-    
-    // Schedule the notification immediately
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: notificationContent,
-      trigger: null, // Immediate notification
-    });
-    
-    // Store the notification ID with the alarm
-    alarm.notificationId = notificationId;
-    
-    console.log(`Test alarm notification triggered with ID: ${notificationId}`);
-    return notificationId;
-  } catch (error) {
-    console.error('Error triggering test alarm:', error);
-    return null;
-  }
 };
