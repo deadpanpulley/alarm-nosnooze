@@ -41,7 +41,8 @@
     "newArchEnabled": true,
     "extra": {
       "eas": {
-        "projectId": "6ceabca7-bbe3-4ef5-b65d-e0807cb6f8aa"
+        "projectId": "6ceabca7-bbe3-4ef5-b65d-e0807cb6f8aa",
+        "owner": "the2ndfloorguy"
       }
     }
   }
