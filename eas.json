@@ -1,0 +1,24 @@
+{
+    "build": {
+        "preview": {
+            "android": {
+                "buildType": "apk",
+                "distribution": "internal",
+                "gradleCommand": ":app:assembleRelease",
+                "env": {
+                    "EXPO_DEBUG": "true",
+                    "NODE_OPTIONS": "--max_old_space_size=4096"
+                }
+            }
+        },
+        "production": {
+            "android": {
+                "buildType": "app-bundle"
+            }
+        },
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        }
+    }
+}
