@@ -1,17 +1,22 @@
-// Define the alarm challenge modes
+// Define alarm modes
 export enum AlarmMode {
   TINY_BUTTON = 'TINY_BUTTON',
   QUIZ = 'QUIZ',
 }
 
-// Alarm interface
+// Define alarm interface with expanded properties
 export interface Alarm {
   id: string;
   time: string;
   label: string;
   isActive: boolean;
   mode: AlarmMode;
-  days: number[]; // 0-6 representing Sunday-Saturday
+  days: number[];
   sound: string;
-  notificationId?: string; // ID for scheduled notification
+  
+  // Added properties for better alarm handling
+  notificationId?: string;
+  scheduledHours?: number;
+  scheduledMinutes?: number;
+  lastTriggered?: number;
 }

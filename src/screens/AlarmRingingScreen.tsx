@@ -7,12 +7,14 @@ import {
   Vibration,
   Platform,
   Animated,
-  Easing
+  Easing,
+  BackHandler,
+  AppState
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { AlarmMode } from '../types';
@@ -27,6 +29,7 @@ const AlarmRingingScreen = () => {
   
   // Sound object for alarm
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isSoundReady, setSoundReady] = useState(false);
   
   // Animation values
   const pulseAnim = new Animated.Value(1);
@@ -103,45 +106,102 @@ const AlarmRingingScreen = () => {
     }).start();
   };
 
-  // Load and play alarm sound
+  // Load and play alarm sound with more robust error handling
   const playAlarmSound = async () => {
     try {
-      const { sound } = await Audio.Sound.createAsync(
+      console.log("Loading alarm sound...");
+      
+      // Set audio mode first
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        playThroughEarpieceAndroid: false,
+      });
+      
+      // Unload any existing sound
+      if (sound) {
+        await sound.unloadAsync();
+      }
+      
+      // Now create and play the sound
+      const { sound: newSound } = await Audio.Sound.createAsync(
         require('../../assets/alarm-sound.mp3'),
-        { shouldPlay: true, isLooping: true, volume: 1.0 }
+        { 
+          shouldPlay: true, 
+          isLooping: true, 
+          volume: 1.0,
+          // These are important for alarms to continue in background
+          progressUpdateIntervalMillis: 1000,
+          positionMillis: 0,
+        },
+        (status) => {
+          console.log("Sound status update:", status);
+          if (status.isLoaded && !status.isPlaying && isSoundReady) {
+            // Try to play again if it stopped unexpectedly
+            newSound.playAsync();
+          }
+        }
       );
-      setSound(sound);
+      
+      setSound(newSound);
+      setSoundReady(true);
+      
+      // Make sure it's playing
+      await newSound.playAsync();
+      console.log("Alarm sound is now playing");
     } catch (error) {
       console.error('Error playing alarm sound:', error);
+      // Fallback - try native device vibration as alert
+      startVibration();
     }
   };
 
-  // Initialize alarm on component mount
-  useEffect(() => {
-    // Setup audio
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
-      playThroughEarpieceAndroid: false,
-    });
-    
-    // Play sound
-    playAlarmSound();
-    
-    // Start vibration pattern
+  // Start vibration pattern
+  const startVibration = () => {
     if (Platform.OS === 'android') {
-      Vibration.vibrate([500, 1000, 500, 1000], true);
+      // Android can use complex patterns (wait, vibrate, wait, vibrate, etc.)
+      Vibration.vibrate([500, 500, 500, 500], true);
     } else {
+      // iOS needs a simpler approach
       const vibrateInterval = setInterval(() => {
         Vibration.vibrate();
-      }, 1500);
+      }, 1000);
       
       return () => clearInterval(vibrateInterval);
     }
+  };
+
+  // Prevent accidental back navigation
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        console.log("Back button pressed - preventing navigation");
+        return true; // Prevent default behavior (exit)
+      };
+
+      // Add back button handler
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => {
+        // Clean up when screen loses focus
+        BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      };
+    }, [])
+  );
+
+  // Initialize alarm on component mount
+  useEffect(() => {
+    console.log("AlarmRingingScreen mounted - initializing alarm");
+    
+    // Start vibration immediately
+    startVibration();
+    
+    // Play sound
+    playAlarmSound();
     
     // Run animations
     runAnimations();
@@ -151,15 +211,45 @@ const AlarmRingingScreen = () => {
       setCurrentTime(getCurrentTime());
     }, 1000);
     
+    // Listen for app state changes to restart sound if app goes to background and comes back
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active' && isSoundReady) {
+        // App has come to the foreground
+        playAlarmSound();
+      }
+    });
+    
     // Cleanup function
     return () => {
+      console.log("AlarmRingingScreen unmounting - cleaning up");
       if (sound) {
         sound.unloadAsync();
       }
       Vibration.cancel();
       clearInterval(timeInterval);
+      appStateSubscription.remove();
     };
   }, []);
+
+  // Extra effect to ensure sound continues playing
+  useEffect(() => {
+    if (isSoundReady && sound) {
+      // Check every 5 seconds if sound is still playing
+      const soundCheckInterval = setInterval(async () => {
+        try {
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded && !status.isPlaying) {
+            console.log("Sound stopped - restarting");
+            await sound.playAsync();
+          }
+        } catch (error) {
+          console.error("Error checking sound status:", error);
+        }
+      }, 5000);
+      
+      return () => clearInterval(soundCheckInterval);
+    }
+  }, [sound, isSoundReady]);
 
   // Get the challenge name based on mode
   const getChallengeName = () => {

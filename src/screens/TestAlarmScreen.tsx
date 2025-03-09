@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { AlarmMode } from '../types';
+import { triggerImmediateAlarm } from '../services/alarmService';
 
 type TestAlarmScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -26,7 +27,8 @@ const TestAlarmScreen = () => {
       sound: 'default'
     };
     
-    navigation.navigate('FindButtonChallenge', { alarm: testAlarm });
+    // Instead of just navigating, trigger a full alarm experience
+    triggerImmediateAlarm(testAlarm);
   };
   
   // Test Quiz challenge
@@ -41,7 +43,8 @@ const TestAlarmScreen = () => {
       sound: 'default'
     };
     
-    navigation.navigate('QuizChallenge', { alarm: testAlarm });
+    // Instead of just navigating, trigger a full alarm experience
+    triggerImmediateAlarm(testAlarm);
   };
 
   return (
