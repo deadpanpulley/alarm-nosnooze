@@ -7,6 +7,7 @@ A fun alarm app - where you need to find the right button to snooze. This alarm 
 - Two wake-up challenges:
   - **Find Button Challenge**: Locate and tap the correct snooze button among several decoys
   - **Quiz Challenge**: Solve a math problem to dismiss the alarm
+  - **Captcha Challenge**: Solve a captcha to dismiss the alarm
 - Set alarms for one-time or recurring schedules
 - Custom alarm labels
 
