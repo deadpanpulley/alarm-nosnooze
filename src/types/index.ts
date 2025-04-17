@@ -2,6 +2,7 @@
 export enum AlarmMode {
   TINY_BUTTON = 'TINY_BUTTON',
   QUIZ = 'QUIZ',
+  CAPTCHA = 'CAPTCHA'
 }
 
 // Define alarm interface with expanded properties

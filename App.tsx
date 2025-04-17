@@ -14,6 +14,7 @@ import TestAlarmScreen from './src/screens/TestAlarmScreen';
 import { Alarm } from './src/types';
 import { initializeApp } from './src/utils/initializeApp';
 import { manualCheckForAlarms } from './src/services/alarmService';
+import CaptchaChallengeScreen from './src/screens/CaptchaChallengeScreen';
 
 // Configure notifications to make them appear even when app is in foreground
 Notifications.setNotificationHandler({
@@ -32,6 +33,7 @@ export type RootStackParamList = {
   AlarmRinging: { alarm: Alarm };
   FindButtonChallenge: { alarm: Alarm };
   QuizChallenge: { alarm: Alarm };
+  CaptchaChallenge: { alarm: Alarm };
   TestAlarm: undefined;
 };
 
@@ -224,6 +226,15 @@ export default function App() {
               cardStyle: { backgroundColor: '#121212' },
               presentation: 'modal', // Valid option
               headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="CaptchaChallenge" 
+            component={CaptchaChallengeScreen}
+            options={{
+              gestureEnabled: false,
+              cardStyle: { backgroundColor: '#121212' },
+              presentation: 'modal', // Make it full screen
             }}
           />
         </Stack.Navigator>

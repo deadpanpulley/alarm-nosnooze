@@ -46,6 +46,22 @@ const TestAlarmScreen = () => {
     // Instead of just navigating, trigger a full alarm experience
     triggerImmediateAlarm(testAlarm);
   };
+  
+  // Test Captcha challenge
+  const testCaptchaChallenge = () => {
+    const testAlarm = {
+      id: 'test-alarm-3',
+      time: '9:15 AM',
+      label: 'Captcha Challenge',
+      isActive: true,
+      mode: AlarmMode.CAPTCHA,
+      days: [],
+      sound: 'default'
+    };
+    
+    // Instead of just navigating, trigger a full alarm experience
+    triggerImmediateAlarm(testAlarm);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -67,6 +83,14 @@ const TestAlarmScreen = () => {
         >
           <Text style={styles.buttonText}>Test Quiz Challenge</Text>
           <Text style={styles.buttonDescription}>Solve a math problem to dismiss</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={testCaptchaChallenge}
+        >
+          <Text style={styles.buttonText}>Test Captcha Challenge</Text>
+          <Text style={styles.buttonDescription}>Enter the captcha text to dismiss</Text>
         </TouchableOpacity>
       </View>
       

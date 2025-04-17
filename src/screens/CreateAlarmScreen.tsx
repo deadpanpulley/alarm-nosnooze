@@ -47,6 +47,12 @@ const CHALLENGE_MODES = [
     description: 'Answer a math question correctly to dismiss',
     icon: 'help-circle'
   },
+  {
+    id: AlarmMode.CAPTCHA,
+    label: 'Solve Captcha',
+    description: 'Type the characters you see to dismiss',
+    icon: 'shield'
+  }
 ];
 
 const CreateAlarmScreen = () => {

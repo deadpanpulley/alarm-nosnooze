@@ -61,6 +61,8 @@ const AlarmRingingScreen = () => {
       navigation.navigate('FindButtonChallenge', { alarm });
     } else if (alarm.mode === AlarmMode.QUIZ) {
       navigation.navigate('QuizChallenge', { alarm });
+    } else if (alarm.mode === AlarmMode.CAPTCHA) {
+      navigation.navigate('CaptchaChallenge', { alarm });
     }
   };
 
@@ -258,6 +260,8 @@ const AlarmRingingScreen = () => {
         return 'Find Button';
       case AlarmMode.QUIZ:
         return 'Solve Quiz';
+      case AlarmMode.CAPTCHA:
+        return 'Solve Captcha';
       default:
         return 'Challenge';
     }
