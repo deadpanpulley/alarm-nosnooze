@@ -52,7 +52,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "githubUrl": "https://github.com/Pankajtanwarbanna/alarmy",
     "extra": {
       "eas": {
@@ -79,7 +79,14 @@
       ],
       [
         "expo-task-manager"
-      ]
-    ]
+      ],
+      "expo-build-properties"
+    ],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e9e857bc-04b7-4aad-842d-3f58b805cfaf"
+    }
   }
 }

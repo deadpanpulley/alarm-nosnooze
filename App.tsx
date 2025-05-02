@@ -11,6 +11,10 @@ import AlarmRingingScreen from './src/screens/AlarmRingingScreen';
 import FindButtonChallengeScreen from './src/screens/FindButtonChallengeScreen';
 import QuizChallengeScreen from './src/screens/QuizChallengeScreen';
 import TestAlarmScreen from './src/screens/TestAlarmScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import AndroidSettingsScreen from './src/screens/AndroidSettingsScreen';
+import QRCodeSetupScreen from './src/screens/QRCodeSetupScreen';
+import QRCodeChallengeScreen from './src/screens/QRCodeChallengeScreen';
 import { Alarm } from './src/types';
 import { initializeApp } from './src/utils/initializeApp';
 import { manualCheckForAlarms } from './src/services/alarmService';
@@ -34,7 +38,11 @@ export type RootStackParamList = {
   FindButtonChallenge: { alarm: Alarm };
   QuizChallenge: { alarm: Alarm };
   CaptchaChallenge: { alarm: Alarm };
+  QRCodeSetup: { alarmId?: string };
+  QRCodeChallenge: { alarm: Alarm };
   TestAlarm: undefined;
+  Analytics: undefined;
+  AndroidSettings: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -235,6 +243,37 @@ export default function App() {
               gestureEnabled: false,
               cardStyle: { backgroundColor: '#121212' },
               presentation: 'modal', // Make it full screen
+            }}
+          />
+          <Stack.Screen 
+            name="QRCodeSetup" 
+            component={QRCodeSetupScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="QRCodeChallenge" 
+            component={QRCodeChallengeScreen}
+            options={{
+              gestureEnabled: false,
+              cardStyle: { backgroundColor: '#121212' },
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="Analytics" 
+            component={AnalyticsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="AndroidSettings" 
+            component={AndroidSettingsScreen}
+            options={{
+              headerShown: false,
             }}
           />
         </Stack.Navigator>

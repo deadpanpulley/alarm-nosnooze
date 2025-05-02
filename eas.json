@@ -7,6 +7,19 @@
                 "gradleCommand": ":app:assembleRelease",
                 "env": {
                     "EXPO_DEBUG": "true",
+                    "NODE_OPTIONS": "--max_old_space_size=4096",
+                    "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxPermSize=4096m -XX:+HeapDumpOnOutOfMemoryError"
+                }
+            }
+        },
+        "preview-fixed": {
+            "android": {
+                "buildType": "apk",
+                "distribution": "internal",
+                "gradleCommand": ":app:assembleDebug",
+                "developmentClient": true,
+                "env": {
+                    "EXPO_DEBUG": "true",
                     "NODE_OPTIONS": "--max_old_space_size=4096"
                 }
             }

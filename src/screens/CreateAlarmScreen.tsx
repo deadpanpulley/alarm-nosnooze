@@ -52,6 +52,13 @@ const CHALLENGE_MODES = [
     label: 'Solve Captcha',
     description: 'Type the characters you see to dismiss',
     icon: 'shield'
+  },
+  {
+    id: 'QR_CODE' as AlarmMode,
+    label: 'Scan QR Code',
+    description: 'Scan a specific QR code to dismiss the alarm',
+    icon: 'grid',
+    requiresSetup: true
   }
 ];
 
@@ -120,6 +127,19 @@ const CreateAlarmScreen = () => {
         days: selectedDays,
         sound: 'default'
       };
+      
+      // For QR code mode, navigate to QR code setup first
+      if (selectedMode === 'QR_CODE' as AlarmMode) {
+        navigation.navigate('QRCodeSetup', { alarmId: newAlarm.id });
+        
+        // Save the alarm without activating it yet
+        const existingAlarmsJson = await AsyncStorage.getItem('alarms');
+        const existingAlarms = existingAlarmsJson ? JSON.parse(existingAlarmsJson) : [];
+        const updatedAlarms = [...existingAlarms, newAlarm];
+        await AsyncStorage.setItem('alarms', JSON.stringify(updatedAlarms));
+        
+        return;
+      }
       
       // Get existing alarms
       const existingAlarmsJson = await AsyncStorage.getItem('alarms');
@@ -256,7 +276,7 @@ const CreateAlarmScreen = () => {
                 onPress={() => setSelectedMode(mode.id)}
               >
                 <Feather 
-                  name={mode.icon} 
+                  name={mode.icon as any} 
                   size={20} 
                   color="#333" 
                   style={styles.challengeIcon} 
@@ -264,6 +284,9 @@ const CreateAlarmScreen = () => {
                 <View style={styles.challengeTextContainer}>
                   <Text style={styles.challengeTitle}>{mode.label}</Text>
                   <Text style={styles.challengeDescription}>{mode.description}</Text>
+                  {mode.requiresSetup && (
+                    <Text style={styles.setupRequired}>Requires setup</Text>
+                  )}
                 </View>
                 <View style={[
                   styles.radioCircle,
@@ -444,8 +467,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   challengeDescription: {
-    fontSize: 13,
-    color: '#777',
+    fontSize: 12,
+    color: '#666',
+  },
+  setupRequired: {
+    fontSize: 10,
+    color: '#2E7D87',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   radioCircle: {
     width: 20,

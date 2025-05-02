@@ -7,7 +7,10 @@ import {
 	TouchableOpacity,
 	Switch,
 	ActivityIndicator,
-	Alert
+	Alert,
+	Animated,
+	Dimensions,
+	Platform
 } from 'react-native';
 import { Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +20,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { scheduleAlarmNotification, cancelAlarmNotification, manualCheckForAlarms } from '../services/alarmService';
+import { isAndroid } from '../utils/androidSpecific';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -44,7 +48,6 @@ const checkNotificationPermissions = async () => {
 	return true;
 };
 
-
 // Format days to display
 const formatDays = (days: number[]) => {
 	if (days.length === 7) return 'Every day';
@@ -61,6 +64,8 @@ const HomeScreen = () => {
 	const navigation = useNavigation<HomeScreenNavigationProp>();
 	const [alarms, setAlarms] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const fadeAnim = useState(new Animated.Value(0))[0];
+	const slideAnim = useState(new Animated.Value(30))[0];
 
 	// Load alarms from storage
 	const loadAlarms = async () => {
@@ -70,6 +75,20 @@ const HomeScreen = () => {
 			if (alarmsJson) {
 				setAlarms(JSON.parse(alarmsJson));
 			}
+			
+			// Animate content in
+			Animated.parallel([
+				Animated.timing(fadeAnim, {
+					toValue: 1,
+					duration: 600,
+					useNativeDriver: true,
+				}),
+				Animated.timing(slideAnim, {
+					toValue: 0,
+					duration: 600,
+					useNativeDriver: true,
+				})
+			]).start();
 		} catch (error) {
 			console.error('Error loading alarms:', error);
 		} finally {
@@ -202,79 +221,140 @@ const HomeScreen = () => {
 		}, [])
 	);
 
-
 	return (
 		<SafeAreaView style={styles.container}>
 			<View style={styles.header}>
-				<TouchableOpacity onPress={handleHeaderTap}>
-					<Text style={styles.headerTitle}>my alarms</Text>
-				</TouchableOpacity>
-				<TouchableOpacity style={styles.headerButton}>
-					<Feather name="settings" size={20} color="#333" />
-				</TouchableOpacity>
+				<Text style={styles.title}>Alarmy</Text>
+				<View style={styles.headerButtons}>
+					{isAndroid && (
+						<TouchableOpacity 
+							style={styles.androidSettingsButton} 
+							onPress={() => navigation.navigate('AndroidSettings')}
+						>
+							<Feather name="smartphone" size={22} color="#2E7D87" />
+						</TouchableOpacity>
+					)}
+					<TouchableOpacity style={styles.analyticsButton} onPress={() => navigation.navigate('Analytics')}>
+						<Feather name="bar-chart-2" size={24} color="#2E7D87" />
+					</TouchableOpacity>
+				</View>
 			</View>
+
+			<Animated.View 
+				style={[
+					styles.analyticsCardContainer, 
+					{
+						opacity: fadeAnim,
+						transform: [{ translateY: slideAnim }]
+					}
+				]}
+			>
+				<TouchableOpacity 
+					style={styles.analyticsCard} 
+					onPress={() => navigation.navigate('Analytics')}
+					activeOpacity={0.8}
+				>
+					<View style={styles.analyticsIconContainer}>
+						<Feather name="bar-chart-2" size={32} color="#fff" />
+					</View>
+					<View style={styles.analyticsTextContainer}>
+						<Text style={styles.analyticsCardText}>View Analytics</Text>
+						<Text style={styles.analyticsCardSubtext}>Track your wake-up patterns</Text>
+					</View>
+				</TouchableOpacity>
+			</Animated.View>
 
 			{isLoading ? (
 				<View style={styles.loadingContainer}>
 					<ActivityIndicator size="large" color="#2E7D87" />
 				</View>
 			) : alarms.length === 0 ? (
-				<View style={styles.emptyContainer}>
-					<Feather name="clock" size={64} color="#E0E0E0" />
+				<Animated.View 
+					style={[
+						styles.emptyContainer,
+						{
+							opacity: fadeAnim,
+							transform: [{ translateY: slideAnim }]
+						}
+					]}
+				>
+					<View style={styles.emptyIconContainer}>
+						<Feather name="clock" size={64} color="#E0E0E0" />
+					</View>
 					<Text style={styles.emptyText}>No alarms set</Text>
 					<Text style={styles.emptySubtext}>Tap the + button to add an alarm</Text>
-				</View>
+				</Animated.View>
 			) : (
-				<FlatList
-					data={alarms}
-					keyExtractor={(item) => item.id}
-					showsVerticalScrollIndicator={false}
-					contentContainerStyle={styles.listContainer}
-					renderItem={({ item }) => (
-						<View style={styles.alarmCard}>
-							<View style={styles.alarmMainInfo}>
-								<View>
-									<Text style={styles.alarmTime}>{item.time}</Text>
-									<Text style={styles.alarmLabel}>{item.label}</Text>
-								</View>
+				<Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+					<FlatList
+						data={alarms}
+						keyExtractor={(item) => item.id}
+						showsVerticalScrollIndicator={false}
+						contentContainerStyle={styles.listContainer}
+						renderItem={({ item, index }) => (
+							<Animated.View 
+								style={{
+									transform: [{ 
+										translateY: slideAnim.interpolate({
+											inputRange: [0, 1],
+											outputRange: [0, 15 * (index + 1)]
+										}) 
+									}]
+								}}
+							>
+								<TouchableOpacity 
+									style={[
+										styles.alarmCard,
+										item.isActive && styles.alarmCardActive
+									]}
+									activeOpacity={0.9}
+									onPress={() => {}}
+								>
+									<View style={styles.alarmMainInfo}>
+										<View>
+											<Text style={styles.alarmTime}>{item.time}</Text>
+											<Text style={styles.alarmLabel}>{item.label}</Text>
+										</View>
 
-								<View style={styles.rightControls}>
-									<TouchableOpacity
-										style={styles.deleteButton}
-										onPress={() => confirmDelete(item.id)}
-									>
-										<Feather name="trash-2" size={18} color="#333" />
-									</TouchableOpacity>
+										<View style={styles.rightControls}>
+											<TouchableOpacity
+												style={styles.deleteButton}
+												onPress={() => confirmDelete(item.id)}
+											>
+												<Feather name="trash-2" size={18} color="#333" />
+											</TouchableOpacity>
 
-									<Switch
-										value={item.isActive}
-										onValueChange={() => toggleAlarm(item.id)}
-										trackColor={{ false: '#eee', true: '#2E7D87' }}
-										thumbColor="#fff"
-										ios_backgroundColor="#eee"
-									/>
-								</View>
-							</View>
-
-							<View style={styles.alarmDetails}>
-								<View style={styles.daysContainer}>
-									<Text style={styles.daysText}>{formatDays(item.days)}</Text>
-								</View>
-
-								{item.isActive && (
-									<View style={styles.modeContainer}>
-										<Feather
-											name={item.mode === 'TINY_BUTTON' ? 'target' : 'help-circle'}
-											size={14}
-											color="#333"
-										/>
-										<Text style={styles.modeText}>{getModeName(item.mode)}</Text>
+											<Switch
+												value={item.isActive}
+												onValueChange={() => toggleAlarm(item.id)}
+												trackColor={{ false: '#eee', true: '#2E7D87' }}
+												thumbColor="#fff"
+												ios_backgroundColor="#eee"
+											/>
+										</View>
 									</View>
-								)}
-							</View>
-						</View>
-					)}
-				/>
+
+									<View style={styles.alarmDetails}>
+										<View style={styles.daysContainer}>
+											<Text style={styles.daysText}>{formatDays(item.days)}</Text>
+										</View>
+
+										{item.isActive && (
+											<View style={styles.modeContainer}>
+												<Feather
+													name={item.mode === 'TINY_BUTTON' ? 'target' : 'help-circle'}
+													size={14}
+													color="#333"
+												/>
+												<Text style={styles.modeText}>{getModeName(item.mode)}</Text>
+											</View>
+										)}
+									</View>
+								</TouchableOpacity>
+							</Animated.View>
+						)}
+					/>
+				</Animated.View>
 			)}
 			{__DEV__ && (
 				<TouchableOpacity
@@ -294,7 +374,7 @@ const HomeScreen = () => {
 				style={styles.addButton}
 				onPress={() => navigation.navigate('CreateAlarm')}
 			>
-				<Feather name="plus" size={22} color="#333" />
+				<Feather name="plus" size={22} color="#fff" />
 			</TouchableOpacity>
 		</SafeAreaView>
 	);
@@ -316,30 +396,41 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
-		backgroundColor: '#fff',
+		backgroundColor: '#f8f9fd',
 	},
 	header: {
 		flexDirection: 'row',
+		alignItems: 'center',
 		justifyContent: 'space-between',
-		alignItems: 'center',
-		paddingHorizontal: 16,
-		paddingVertical: 12,
+		paddingHorizontal: 24,
+		paddingTop: 32,
+		paddingBottom: 16,
+		backgroundColor: '#fff',
 		borderBottomWidth: 1,
-		borderBottomColor: '#f0f0f0',
+		borderBottomColor: '#e0e0e0',
+		shadowColor: '#000',
+		shadowOpacity: 0.05,
+		shadowOffset: { width: 0, height: 2 },
+		shadowRadius: 10,
+		elevation: 3,
 	},
-	headerTitle: {
-		fontSize: 16,
-		fontWeight: '500',
-		color: '#333',
-		textTransform: 'lowercase',
-	},
-	headerButton: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		backgroundColor: '#f5f5f5',
-		justifyContent: 'center',
+	headerButtons: {
+		flexDirection: 'row',
 		alignItems: 'center',
+	},
+	androidSettingsButton: {
+		marginRight: 16,
+	},
+	title: {
+		fontSize: 28,
+		fontWeight: 'bold',
+		color: '#2E7D87',
+		letterSpacing: 0.5,
+	},
+	analyticsButton: {
+		padding: 10,
+		borderRadius: 12,
+		backgroundColor: '#e4f5f6',
 	},
 	loadingContainer: {
 		flex: 1,
@@ -352,14 +443,23 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		paddingHorizontal: 40,
 	},
+	emptyIconContainer: {
+		width: 120,
+		height: 120,
+		borderRadius: 60,
+		backgroundColor: '#f0f0f0',
+		justifyContent: 'center',
+		alignItems: 'center',
+		marginBottom: 16,
+	},
 	emptyText: {
-		fontSize: 18,
+		fontSize: 20,
 		fontWeight: '600',
 		color: '#333',
 		marginTop: 16,
 	},
 	emptySubtext: {
-		fontSize: 14,
+		fontSize: 15,
 		color: '#777',
 		marginTop: 8,
 		textAlign: 'center',
@@ -369,12 +469,21 @@ const styles = StyleSheet.create({
 		paddingBottom: 100,
 	},
 	alarmCard: {
-		borderRadius: 12,
-		backgroundColor: '#f9f9f9',
-		marginBottom: 12,
-		padding: 16,
+		borderRadius: 16,
+		backgroundColor: '#fff',
+		marginBottom: 16,
+		padding: 18,
 		borderWidth: 1,
 		borderColor: '#f0f0f0',
+		shadowColor: '#000',
+		shadowOpacity: 0.04,
+		shadowOffset: { width: 0, height: 2 },
+		shadowRadius: 8,
+		elevation: 2,
+	},
+	alarmCardActive: {
+		borderLeftWidth: 4,
+		borderLeftColor: '#2E7D87',
 	},
 	alarmMainInfo: {
 		flexDirection: 'row',
@@ -382,70 +491,117 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	alarmTime: {
-		fontSize: 22,
+		fontSize: 24,
 		fontWeight: '500',
 		color: '#333',
-		marginBottom: 2,
+		marginBottom: 4,
 	},
 	alarmLabel: {
-		fontSize: 14,
+		fontSize: 15,
 		color: '#777',
 	},
 	rightControls: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 8,
+		gap: 12,
 	},
 	deleteButton: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
+		width: 40,
+		height: 40,
+		borderRadius: 20,
 		backgroundColor: '#f5f5f5',
 		justifyContent: 'center',
 		alignItems: 'center',
 	},
 	alarmDetails: {
 		flexDirection: 'row',
-		marginTop: 12,
-		paddingTop: 12,
+		marginTop: 14,
+		paddingTop: 14,
 		borderTopWidth: 1,
 		borderTopColor: '#f0f0f0',
 	},
 	daysContainer: {
 		backgroundColor: '#f5f5f5',
-		paddingHorizontal: 10,
+		paddingHorizontal: 12,
 		paddingVertical: 6,
 		borderRadius: 16,
 		marginRight: 8,
 	},
 	daysText: {
-		fontSize: 12,
+		fontSize: 13,
 		color: '#555',
+		fontWeight: '500',
 	},
 	modeContainer: {
-		backgroundColor: '#f5f5f5',
-		paddingHorizontal: 10,
+		backgroundColor: '#e4f5f6',
+		paddingHorizontal: 12,
 		paddingVertical: 6,
 		borderRadius: 16,
 		flexDirection: 'row',
 		alignItems: 'center',
 	},
 	modeText: {
-		fontSize: 12,
-		color: '#555',
-		marginLeft: 4,
+		fontSize: 13,
+		color: '#2E7D87',
+		marginLeft: 6,
+		fontWeight: '500',
 	},
 	addButton: {
 		position: 'absolute',
 		right: 24,
 		bottom: 24,
+		width: 60,
+		height: 60,
+		borderRadius: 30,
+		backgroundColor: '#2E7D87',
+		justifyContent: 'center',
+		alignItems: 'center',
+		shadowColor: '#000',
+		shadowOpacity: 0.2,
+		shadowOffset: { width: 0, height: 4 },
+		shadowRadius: 8,
+		elevation: 5,
+	},
+	analyticsCardContainer: {
+		paddingHorizontal: 16,
+		marginTop: 16,
+		marginBottom: 8,
+	},
+	analyticsCard: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		backgroundColor: '#2E7D87',
+		borderRadius: 16,
+		paddingVertical: 16,
+		paddingHorizontal: 20,
+		shadowColor: '#000',
+		shadowOpacity: 0.15,
+		shadowRadius: 10,
+		shadowOffset: { width: 0, height: 4 },
+		elevation: 5,
+	},
+	analyticsIconContainer: {
 		width: 56,
 		height: 56,
 		borderRadius: 28,
-		backgroundColor: '#f5f5f5',
+		backgroundColor: 'rgba(255, 255, 255, 0.2)',
 		justifyContent: 'center',
 		alignItems: 'center',
-	}
+	},
+	analyticsTextContainer: {
+		marginLeft: 16,
+	},
+	analyticsCardText: {
+		color: '#fff',
+		fontSize: 18,
+		fontWeight: 'bold',
+		letterSpacing: 0.5,
+	},
+	analyticsCardSubtext: {
+		color: 'rgba(255, 255, 255, 0.8)',
+		fontSize: 14,
+		marginTop: 4,
+	},
 });
 
 export default HomeScreen;

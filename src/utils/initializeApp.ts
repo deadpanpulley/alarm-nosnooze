@@ -9,6 +9,12 @@ import {
   registerBackgroundTask,
   manualCheckForAlarms
 } from '../services/alarmService';
+import { 
+  isAndroid, 
+  setupAlarmNotificationChannel, 
+  requestExactAlarmPermission,
+  deviceSupportsReliableAlarms
+} from './androidSpecific';
 
 /**
  * Initialize app-wide functionality
@@ -29,6 +35,20 @@ export const initializeApp = async (navigation: any) => {
           },
         },
       ]);
+    }
+    
+    // For Android, set up the high-priority alarm channel
+    if (isAndroid) {
+      await setupAlarmNotificationChannel();
+      
+      // Request exact alarm permission for Android 12+
+      await requestExactAlarmPermission();
+      
+      // Check if device supports reliable alarms
+      const hasReliableAlarms = await deviceSupportsReliableAlarms();
+      if (!hasReliableAlarms) {
+        console.warn('Device may not support reliable alarms due to manufacturer restrictions');
+      }
     }
     
     // Request notification permissions first

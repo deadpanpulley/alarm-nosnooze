@@ -6,6 +6,15 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alarm, AlarmMode } from '../types';
 import Constants from 'expo-constants';
+import { 
+  isWeb, 
+  requestWebNotificationPermissions, 
+  showWebNotification, 
+  triggerWebAlarm, 
+  scheduleWebAlarm,
+  webAlarmTimeouts,
+  cancelWebAlarm
+} from './webCompatibility';
 
 // Define background task names
 const BACKGROUND_ALARM_TASK = 'background-alarm-check';
@@ -65,6 +74,11 @@ export const registerBackgroundTask = async () => {
 
 // Request more aggressive permissions for Android alarms
 export const requestNotificationPermissions = async () => {
+  // For web platform, use web notifications API
+  if (isWeb) {
+    return await requestWebNotificationPermissions();
+  }
+
   if (Platform.OS === 'android') {
     console.log('Setting up Android alarm channel...');
     
@@ -111,8 +125,19 @@ export const requestNotificationPermissions = async () => {
 
 // Add notification listener to handle alarm triggers
 let notificationListener: any = null;
+// For web, we'll store active audio elements
+let webAudioElement: HTMLAudioElement | null = null;
 
 export const setupNotificationListener = (navigation: any) => {
+  // For web platform, we don't use the same notification system
+  if (isWeb) {
+    console.log('Setting up web notification listener');
+    // Return a dummy object with remove method for API compatibility
+    return {
+      remove: () => console.log('Web notification listener removed')
+    };
+  }
+
   // Remove any existing listeners
   if (notificationListener) {
     notificationListener.remove();
@@ -130,6 +155,8 @@ export const setupNotificationListener = (navigation: any) => {
         navigation.navigate('FindButtonChallenge', { alarm });
       } else if (alarm.mode === AlarmMode.QUIZ) {
         navigation.navigate('QuizChallenge', { alarm });
+      } else if (alarm.mode === 'QR_CODE' as AlarmMode) {
+        navigation.navigate('QRCodeChallenge', { alarm });
       } else {
         // Fallback to AlarmRinging screen if mode is unknown
         navigation.navigate('AlarmRinging', { alarm });
@@ -149,6 +176,8 @@ export const setupNotificationListener = (navigation: any) => {
         navigation.navigate('FindButtonChallenge', { alarm });
       } else if (alarm.mode === AlarmMode.QUIZ) {
         navigation.navigate('QuizChallenge', { alarm });
+      } else if (alarm.mode === 'QR_CODE' as AlarmMode) {
+        navigation.navigate('QRCodeChallenge', { alarm });
       } else {
         // Fallback to AlarmRinging screen if mode is unknown
         navigation.navigate('AlarmRinging', { alarm });
@@ -242,50 +271,85 @@ const deactivateOneTimeAlarm = async (alarm: Alarm) => {
 };
 
 // Trigger an immediate notification for the alarm - make it full screen intent
-const triggerAlarmNotification = async (alarm: Alarm) => {
-  // For Android, we need to create a full screen intent notification
-  const notificationContent = {
-    title: alarm.label || 'Alarm',
-    body: 'Wake up! Your alarm is ringing!', // More descriptive
-    data: { 
-      alarm,
-      isAlarm: true, // Flag to identify this as an alarm notification
-      fullScreen: true, // Flag for full screen intent
-    },
-    // Critical for Android
-    sound: true,
-    priority: 'max',
-    vibrate: [0, 250, 250, 250, 250, 250],
-    sticky: true, // Make notification persistent
-  };
-
-  // Use a specific notification channel for alarms
-  if (Platform.OS === 'android') {
-    // @ts-ignore - Add android-specific properties
-    notificationContent.channelId = ALARM_NOTIFICATION_CHANNEL;
-    // @ts-ignore
-    notificationContent.android = {
-      priority: 'max',
-      // This makes it show as a full-screen activity
-      presentAsFullScreenIntent: true,
-      // Critical - makes it show even when app is in background
-      showWhen: true,
-      // Make it not dismissible by swipe
-      ongoing: true,
-      // Custom sound and vibration
-      vibrationPattern: [0, 250, 250, 250, 250, 250],
-      color: '#FF231F7C',
-    };
+export const triggerAlarmNotification = async (alarm: Alarm) => {
+  // For web platform, use web notifications and audio
+  if (isWeb) {
+    console.log('Triggering web alarm notification');
+    
+    // Show a web notification
+    showWebNotification('Alarm', {
+      body: alarm.label || 'Time to wake up!',
+      icon: '/assets/icon.png',
+      requireInteraction: true
+    });
+    
+    // Play alarm sound
+    webAudioElement = triggerWebAlarm(alarm);
+    
+    // If we have global navigation, navigate to the alarm screen
+    if (global.navigation) {
+      if (alarm.mode === AlarmMode.TINY_BUTTON) {
+        global.navigation.navigate('FindButtonChallenge', { alarm });
+      } else if (alarm.mode === AlarmMode.QUIZ) {
+        global.navigation.navigate('QuizChallenge', { alarm });
+      } else if (alarm.mode === 'QR_CODE' as AlarmMode) {
+        global.navigation.navigate('QRCodeChallenge', { alarm });
+      } else {
+        global.navigation.navigate('AlarmRinging', { alarm });
+      }
+    }
+    
+    return true;
   }
 
-  // Schedule the notification immediately
-  const notificationId = await Notifications.scheduleNotificationAsync({
-    content: notificationContent,
-    trigger: null, // Immediate notification
-  });
-  
-  console.log(`Alarm notification triggered with ID: ${notificationId}`);
-  return notificationId;
+  try {
+    // For Android, we need to create a full screen intent notification
+    const notificationContent = {
+      title: alarm.label || 'Alarm',
+      body: 'Wake up! Your alarm is ringing!', // More descriptive
+      data: { 
+        alarm,
+        isAlarm: true, // Flag to identify this as an alarm notification
+        fullScreen: true, // Flag for full screen intent
+      },
+      // Critical for Android
+      sound: true,
+      priority: 'max',
+      vibrate: [0, 250, 250, 250, 250, 250],
+      sticky: true, // Make notification persistent
+    };
+
+    // Use a specific notification channel for alarms
+    if (Platform.OS === 'android') {
+      // @ts-ignore - Add android-specific properties
+      notificationContent.channelId = ALARM_NOTIFICATION_CHANNEL;
+      // @ts-ignore
+      notificationContent.android = {
+        priority: 'max',
+        // This makes it show as a full-screen activity
+        presentAsFullScreenIntent: true,
+        // Critical - makes it show even when app is in background
+        showWhen: true,
+        // Make it not dismissible by swipe
+        ongoing: true,
+        // Custom sound and vibration
+        vibrationPattern: [0, 250, 250, 250, 250, 250],
+        color: '#FF231F7C',
+      };
+    }
+
+    // Schedule the notification immediately
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: notificationContent,
+      trigger: null, // Immediate notification
+    });
+    
+    console.log(`Alarm notification triggered with ID: ${notificationId}`);
+    return notificationId;
+  } catch (error) {
+    console.error('Error triggering alarm notification:', error);
+    return null;
+  }
 };
 
 // Triggers an immediate alarm (for testing)
@@ -300,6 +364,8 @@ export const triggerImmediateAlarm = async (alarm: Alarm) => {
         global.navigation.navigate('FindButtonChallenge', { alarm });
       } else if (alarm.mode === AlarmMode.QUIZ) {
         global.navigation.navigate('QuizChallenge', { alarm });
+      } else if (alarm.mode === 'QR_CODE' as AlarmMode) {
+        global.navigation.navigate('QRCodeChallenge', { alarm });
       } else {
         global.navigation.navigate('AlarmRinging', { alarm });
       }
@@ -317,6 +383,24 @@ export const triggerImmediateAlarm = async (alarm: Alarm) => {
 
 // Schedule all pending alarms with exact timing
 export const scheduleAlarmNotification = async (alarm: Alarm) => {
+  // For web platform, use setTimeout instead of notifications
+  if (isWeb) {
+    console.log(`Scheduling web alarm: ${alarm.label} (${alarm.id})`);
+    
+    // Cancel any existing timeout for this alarm
+    cancelWebAlarm(alarm.id);
+    
+    // Schedule new timeout
+    const timeoutId = scheduleWebAlarm(alarm, (scheduledAlarm) => {
+      triggerAlarmNotification(scheduledAlarm);
+    });
+    
+    // Store the timeout ID
+    webAlarmTimeouts[alarm.id] = timeoutId;
+    
+    return true;
+  }
+
   try {
     // Parse the time string
     const [time, period] = alarm.time.split(' ');
@@ -396,16 +480,25 @@ export const scheduleAlarmNotification = async (alarm: Alarm) => {
 
 // Cancel an alarm notification
 export const cancelAlarmNotification = async (alarm: Alarm) => {
-  if (alarm.notificationId) {
-    await Notifications.cancelScheduledNotificationAsync(alarm.notificationId);
-    
-    // Update the alarm in storage without notification ID
-    const updatedAlarm = {
-      ...alarm,
-      notificationId: undefined,
-    };
-    
-    await updateAlarmInStorage(updatedAlarm);
+  // For web platform, clear the timeout
+  if (isWeb) {
+    return cancelWebAlarm(alarm.id);
+  }
+
+  try {
+    if (alarm.notificationId) {
+      await Notifications.cancelScheduledNotificationAsync(alarm.notificationId);
+      
+      // Update the alarm in storage without notification ID
+      const updatedAlarm = {
+        ...alarm,
+        notificationId: undefined,
+      };
+      
+      await updateAlarmInStorage(updatedAlarm);
+    }
+  } catch (error) {
+    console.error('Error canceling alarm notification:', error);
   }
 };
 
