@@ -28,12 +28,29 @@
                 }
             }
         },
+        "simple": {
+            "android": {
+                "buildType": "apk",
+                "gradleCommand": ":app:assembleRelease",
+                "withoutCredentials": true
+            }
+        },
         "apk": {
             "android": {
                 "buildType": "apk",
                 "gradleCommand": ":app:assembleRelease",
                 "developmentClient": false,
-                "withoutCredentials": true
+                "withoutCredentials": true,
+                "env": {
+                    "EXPO_MODULE_GRADLE_PLUGIN_CLASSPATH": "classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24'",
+                    "EXPO_DEBUG": "true"
+                },
+                "buildArtifacts": {
+                    "android": {
+                        "gradleCommand": ":app:assembleRelease",
+                        "releaseChannel": "default"
+                    }
+                }
             }
         },
         "production": {
