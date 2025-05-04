@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, RouteProp, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type QRCodeSetupScreenNavigationProp = StackNavigationProp<RootStackParamList, 'QRCodeSetup'>;
@@ -33,13 +33,14 @@ const QRCodeSetupScreen = () => {
   // Request camera permissions
   useEffect(() => {
     (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
   }, []);
 
   // Handle barcode scanning
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
+    const { data } = result;
     setScanned(true);
     setQrValue(data);
     
@@ -142,7 +143,7 @@ const QRCodeSetupScreen = () => {
           <TouchableOpacity 
             style={styles.permissionButton}
             onPress={async () => {
-              const { status } = await BarCodeScanner.requestPermissionsAsync();
+              const { status } = await Camera.requestCameraPermissionsAsync();
               setHasPermission(status === 'granted');
             }}
           >
@@ -167,9 +168,12 @@ const QRCodeSetupScreen = () => {
       
       <View style={styles.scannerContainer}>
         {!scanned && (
-          <BarCodeScanner
-            onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          <CameraView
             style={StyleSheet.absoluteFillObject}
+            barcodeScannerSettings={{
+              barcodeTypes: ['qr']
+            }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           />
         )}
         

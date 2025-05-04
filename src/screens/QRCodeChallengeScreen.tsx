@@ -15,7 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, RouteProp, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { Alarm } from '../types';
@@ -136,7 +136,7 @@ const QRCodeChallengeScreen = () => {
     
     // Request camera permissions
     const requestCameraPermission = async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     };
     
@@ -155,7 +155,10 @@ const QRCodeChallengeScreen = () => {
   }, [alarm]);
 
   // Handle barcode scanning
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = (result: BarcodeScanningResult) => {
+    // Extract the data from the result
+    const { data } = result;
+    
     // Check if the scanned QR code matches the target
     if (data === targetQRData) {
       setScanned(true);
@@ -256,7 +259,7 @@ const QRCodeChallengeScreen = () => {
           <TouchableOpacity 
             style={styles.permissionButton}
             onPress={async () => {
-              const { status } = await BarCodeScanner.requestPermissionsAsync();
+              const { status } = await Camera.requestCameraPermissionsAsync();
               setHasPermission(status === 'granted');
             }}
           >
@@ -296,9 +299,12 @@ const QRCodeChallengeScreen = () => {
       
       <View style={styles.scannerContainer}>
         {!scanned && (
-          <BarCodeScanner
-            onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          <CameraView
             style={StyleSheet.absoluteFillObject}
+            barcodeScannerSettings={{
+              barcodeTypes: ['qr']
+            }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           />
         )}
         

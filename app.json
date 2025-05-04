@@ -46,8 +46,7 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.WAKE_LOCK"
       ],
-      "allowBackup": true,
-      "useNextNotificationsApi": true
+      "allowBackup": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
