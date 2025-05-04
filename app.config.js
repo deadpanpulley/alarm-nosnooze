@@ -23,8 +23,7 @@ const config = {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff"
     },
-    package: "com.advickbhalla.alarmy",
-    googleServicesFile: "./google-services.json"
+    package: "com.advickbhalla.alarmy"
   },
   web: {
     favicon: "./assets/favicon.png"
